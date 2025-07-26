@@ -1,1 +1,72 @@
-404: Not Found
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
++book/
++target/
++*.pyc
+diff --git a/book.toml b/book.toml
+new file mode 100644
++[book]
++title = "FULL ORDER"
++author = "Wavy × Ordr AGI"
++language = "ru"
++multilingual = false
++src = "src"
+diff --git a/src/00_preface.md b/src/00_preface.md
+new file mode 100644
++# Предисловие
++
++*Дата сборки*: 2025‑07‑26
++
++Книга собирается автоматически из файлов в `raw/`.
++Удаляются только точные дубли строк.
+diff --git a/src/SUMMARY.md b/src/SUMMARY.md
+new file mode 100644
++# Summary
++
++- [Предисловие](00_preface.md)
+diff --git a/theme/neomatrix.css b/theme/neomatrix.css
+new file mode 100644
++:root{--bg:#000;--fg:#e0e0e0;--accent:#00ffb3}
++html{background:var(--bg);color:var(--fg);font-family:Consolas,monospace}
++a{color:var(--accent)}
++pre,code{background:#111;padding:8px;border-radius:6px;white-space:pre-wrap;overflow-x:auto}
+diff --git a/scripts/parse_raw.py b/scripts/parse_raw.py
+new file mode 100755
++import pathlib, re, hashlib, datetime
++p=pathlib.Path(__file__).resolve().parents[1]; raw=p/'raw'; src=p/'src'; src.mkdir(exist_ok=True)
++def s(x):return re.sub(r'[^a-z0-9]+','-',x.lower()).strip('-')
++def d(t):
++ h=set();o=[]
++ for l in t.splitlines():
++  m=hashlib.md5(l.encode()).hexdigest()
++  if m not in h:h.add(m);o.append(l)
++ return '\n'.join(o)+'\n'
++g=[]
++for f in sorted(raw.glob('*.md')):
++ t=d(f.read_text()); n=src/f'{s(f.stem)}.md'; n.write_text(t); g.append(n)
++sm=['# Summary','','- [Предисловие](00_preface.md)']+[f'- [{n.stem}]({n.name})' for n in g]
++(src/'SUMMARY.md').write_text('\n'.join(sm)+'\n')
++p0=src/'00_preface.md'; p0.write_text(p0.read_text().replace('2025‑07‑26',datetime.date.today().isoformat()))
+diff --git a/scripts/parse_and_build.sh b/scripts/parse_and_build.sh
+new file mode 100755
++#!/usr/bin/env bash
++set -e
++python scripts/parse_raw.py
++mdbook build .
+diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
+new file mode 100644
++name: Build-and-Deploy
++on:
++  push:
++    paths: ["raw/**.md","book.toml","theme/**","scripts/**","src/**.md"]
++jobs:
++  book:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - run: cargo install mdbook
++      - run: ./scripts/parse_and_build.sh
++      - uses: peaceiris/actions-gh-pages@v3
++        with:
++          publish_dir: book
++          github_token: ${{ secrets.GH_TOKEN }}
